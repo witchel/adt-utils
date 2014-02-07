@@ -9,13 +9,13 @@
 
 void* debug_calloc(size_t num, size_t size){
     void*p = calloc(num, size);
-    fprintf(stderr, "calloc'd %p\n",p);
+    fprintf(stderr, "calloc'd %llu bytes %llu times at %p\n",size, num, p);
     return p;
 }
 
 void* debug_malloc(size_t size){
     void*p = malloc(size);
-    fprintf(stderr, "malloc'd %p\n",p);
+    fprintf(stderr, "malloc'd %llu bytes at %p\n",size, p);
     return p;
 }
 
@@ -53,7 +53,7 @@ static void* get_bucket_space(struct oht* oht) {
    return ptr;
 }
 static void free_bucket_space(struct oht* oht, void* ptr) {
-    (void)oht;
+    (void)oht; // Use me
    debug_free(ptr);
 }
 
@@ -61,7 +61,7 @@ static void free_bucket_space(struct oht* oht, void* ptr) {
 /* NB: nentryalloc is rounded up to a power of 2 */
 struct oht*
 oht_init(const char* name, u_int64_t ninitialpairs, u_int64_t (*hash)(u_int64_t)) {
-   struct oht* oht = (struct oht*) debug_calloc(1, sizeof(*oht));
+   struct oht* oht = (struct oht*) debug_malloc(sizeof(struct oht));
    if(!oht) return NULL;
    oht->name = name;
    oht->nbucketmask = (u_int64_t)1;
