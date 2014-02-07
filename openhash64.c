@@ -9,13 +9,13 @@
 
 void* debug_calloc(size_t num, size_t size){
     void*p = calloc(num, size);
-    fprintf(stderr, "calloc'd %llu bytes %llu times at %p\n",size, num, p);
+    fprintf(stderr, "calloc'd %zu bytes %zu times at %p\n",size, num, p);
     return p;
 }
 
 void* debug_malloc(size_t size){
     void*p = malloc(size);
-    fprintf(stderr, "malloc'd %llu bytes at %p\n",size, p);
+    fprintf(stderr, "malloc'd %zu bytes at %p\n",size, p);
     return p;
 }
 
@@ -52,9 +52,8 @@ static void* get_bucket_space(struct oht* oht) {
    void* ptr = debug_calloc(oht->nbucketmask + 1, sizeof(struct oht_bucket));
    return ptr;
 }
-static void free_bucket_space(struct oht* oht, void* ptr) {
-    (void)oht; // Use me
-   debug_free(ptr);
+static void free_bucket_space(struct oht* oht) {
+   debug_free(oht->buckets);
 }
 
 
@@ -81,7 +80,7 @@ oht_init(const char* name, u_int64_t ninitialpairs, u_int64_t (*hash)(u_int64_t)
 
 void
 oht_fini(struct oht* oht) {
-   free_bucket_space(oht, oht->buckets);
+   free_bucket_space(oht);
    debug_free(oht);
 }
 
@@ -214,7 +213,7 @@ _oht_grow(struct oht *oht) {
          }
       }
    }
-   free_bucket_space(oht, oht->buckets);
+   free_bucket_space(oht);
    oht->buckets = newht->buckets;
    oht->nbucketmask = newht->nbucketmask;
    oht->reset_probes = oht->reset_calls = (u_int64_t)0;
