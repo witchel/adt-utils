@@ -7,6 +7,12 @@
 
 #include "openhash64.h"
 
+void* debug_calloc(size_t num, size_t size){
+    void*p = calloc(num, size);
+    fprintf(stderr, "calloc'd %p\n",p);
+    return p;
+}
+
 void* debug_malloc(size_t size){
     void*p = malloc(size);
     fprintf(stderr, "malloc'd %p\n",p);
@@ -43,7 +49,7 @@ struct oht {
 static void _oht_grow(struct oht *oht);
 
 static void* get_bucket_space(struct oht* oht) {
-   void* ptr = calloc(oht->nbucketmask + 1, sizeof(struct oht_bucket));
+   void* ptr = debug_calloc(oht->nbucketmask + 1, sizeof(struct oht_bucket));
    return ptr;
 }
 static void free_bucket_space(struct oht* oht, void* ptr) {
@@ -55,7 +61,7 @@ static void free_bucket_space(struct oht* oht, void* ptr) {
 /* NB: nentryalloc is rounded up to a power of 2 */
 struct oht*
 oht_init(const char* name, u_int64_t ninitialpairs, u_int64_t (*hash)(u_int64_t)) {
-   struct oht* oht = (struct oht*) calloc(1, sizeof(*oht));
+   struct oht* oht = (struct oht*) debug_calloc(1, sizeof(*oht));
    if(!oht) return NULL;
    oht->name = name;
    oht->nbucketmask = (u_int64_t)1;
@@ -265,7 +271,7 @@ oht_log_stats(const struct oht *oht) {
            (oht->nbucketmask+1) * PAIR_PER_BUCKET, oht->nbucketmask + 1,
           nused, 100.0 * nused / ((oht->nbucketmask+1) * PAIR_PER_BUCKET),
           oht->expand);
-   printf("\t%llud calls %llud probes %3.2f probes/call\n", 
+   printf("\t%llud calls %llud probes %3.2f probes/call\n",
            oht->calls, oht->probes, (double)oht->probes / oht->calls);
 }
 
