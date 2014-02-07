@@ -5,8 +5,6 @@
 #include <sys/mman.h>
 
 #include "openhash64.h"
-// This dependence is possibly annoying, but I didn't want to add callbacks.
-#include "tmlog.h"
 
 // Assume 64-byte cache lines, so each bucket has 4 pairs
 #define PAIR_PER_BUCKET (4)
@@ -107,11 +105,11 @@ oht_lookup(struct oht  *oht, u_int64_t key) {
    // Keep lookup performance good
    if(oht->reset_calls > (u_int64_t)100
       && (float)oht->reset_probes/oht->reset_calls > 2.0) {
-      TMLog(TML_BASIC, "Probes per call above 2.0, expanding\n");
+      //printf("Probes per call above 2.0, expanding\n");
       _oht_grow(oht);
    }
    u_int64_t h1bucket = oht->hash(key) & oht->nbucketmask;
-   //printf("lookup %lld h1bucket %lld ", key, h1bucket);
+   //printf("lookup %ld h1bucket %ld ", key, h1bucket);
    oht->calls++;
    oht->probes++;
    oht->reset_calls++;
@@ -132,7 +130,7 @@ oht_lookup(struct oht  *oht, u_int64_t key) {
       oht->probes++;
       oht->reset_probes++;
       bucket = (bucket + h2) & oht->nbucketmask;
-      //printf("  lookup %lld bucket %lld ", key, bucket);
+      //printf("  lookup %ld bucket %ld ", key, bucket);
       pair = find_pair(oht, key, bucket);
       //printf("pair %p\n", pair);
       if(pair) return pair;
@@ -151,7 +149,7 @@ oht_create(struct oht *oht, u_int64_t key, int *newone) {
    // Hash table can get full if there were lots of insertions without lookups
    if(pair == NULL) {
       /* Hash table is full. */
-      TMLog(TML_BASIC, "Hash table is full, expanding\n");
+      //printf("Hash table is full, expanding\n");
       _oht_grow(oht);
       return oht_create(oht, key, newone);
    }
@@ -177,7 +175,7 @@ _oht_grow(struct oht *oht) {
       2 * PAIR_PER_BUCKET * (oht->nbucketmask + 1), oht->hash);
    if(newht == NULL) {
       // Run out of mePAIR_PER_BUCKETory
-      TMLog(TML_BASIC, "No memory to grow hash table\n");
+      //printf("No memory to grow hash table\n");
       oht_log_stats(oht);
       return;
    }
@@ -190,8 +188,8 @@ _oht_grow(struct oht *oht) {
             int newone = 0;
             struct oht_pair *pair = oht_create(newht, ohtb->pairs[i].key, &newone);
             if(newone == 0) {
-               TMLog(TML_BASIC, "Duplicate key! Bucket(%d) pair(i) key %lld data %lld\n", 
-                     bucket, i, ohtb->pairs[i].key, ohtb->pairs[i].data);
+               //printf("Duplicate key! Bucket(%d) pair(i) key %ld data %ld\n", 
+               //      bucket, i, ohtb->pairs[i].key, ohtb->pairs[i].data);
             }
             pair->data = ohtb->pairs[i].data;
          }
@@ -245,16 +243,16 @@ _oht_get_nused(const struct oht *oht) {
    }
    return nused;
 }
-// Convenience function, don't call this "normally" because it depends
-// on libc
+// Ugly dependence on stdio
+#include <stdio.h>
 void
 oht_log_stats(const struct oht *oht) {
    u_int64_t nused = _oht_get_nused(oht);
-   TMLog(TML_BASIC, "Table npairs/nbuckets %lld/%lld used %lld(%3.2f%%) expand %d\n", 
+   printf("Table npairs/nbuckets %ld/%ld used %ld(%3.2f%%) expand %d\n", 
            (oht->nbucketmask+1) * PAIR_PER_BUCKET, oht->nbucketmask + 1,
-           nused, 100.0 * nused / ((oht->nbucketmask+1) * PAIR_PER_BUCKET),
-           oht->expand);
-   TMLog(TML_BASIC, "\t%lld calls %lld probes %3.2f probes/call\n", 
+          nused, 100.0 * nused / ((oht->nbucketmask+1) * PAIR_PER_BUCKET),
+          oht->expand);
+   printf("\t%ld calls %ld probes %3.2f probes/call\n", 
            oht->calls, oht->probes, (double)oht->probes / oht->calls);
 }
 
