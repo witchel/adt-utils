@@ -7,9 +7,15 @@
 
 #include "openhash64.h"
 
+void* debug_calloc(size_t num, size_t size){
+    void*p = calloc(num, size);
+    fprintf(stderr, "calloc'd %zu bytes %zu times at %p\n",size, num, p);
+    return p;
+}
+
 void* debug_malloc(size_t size){
     void*p = malloc(size);
-    fprintf(stderr, "malloc'd %p\n",p);
+    fprintf(stderr, "malloc'd %zu bytes at %p\n",size, p);
     return p;
 }
 
@@ -43,19 +49,18 @@ struct oht {
 static void _oht_grow(struct oht *oht);
 
 static void* get_bucket_space(struct oht* oht) {
-   void* ptr = calloc(oht->nbucketmask + 1, sizeof(struct oht_bucket));
+   void* ptr = debug_calloc(oht->nbucketmask + 1, sizeof(struct oht_bucket));
    return ptr;
 }
-static void free_bucket_space(struct oht* oht, void* ptr) {
-    (void)oht;
-   debug_free(ptr);
+static void free_bucket_space(struct oht* oht) {
+   debug_free(oht->buckets);
 }
 
 
 /* NB: nentryalloc is rounded up to a power of 2 */
 struct oht*
 oht_init(const char* name, u_int64_t ninitialpairs, u_int64_t (*hash)(u_int64_t)) {
-   struct oht* oht = (struct oht*) calloc(1, sizeof(*oht));
+   struct oht* oht = (struct oht*) debug_malloc(sizeof(struct oht));
    if(!oht) return NULL;
    oht->name = name;
    oht->nbucketmask = (u_int64_t)1;
@@ -75,26 +80,10 @@ oht_init(const char* name, u_int64_t ninitialpairs, u_int64_t (*hash)(u_int64_t)
 
 void
 oht_fini(struct oht* oht) {
-   free_bucket_space(oht, oht->buckets);
+   free_bucket_space(oht);
    debug_free(oht);
 }
 
-// A simple and fast multiplicative hash function for 64-bits that uses a golden ratio
-// multiplier because Knuth says so.
-static u_int64_t
-mult_hash(u_int64_t _a){
-   unsigned char *a = (unsigned char*)&_a;
-   u_int64_t h = _a;
-   h = 0x9e3779b97f4a7c13ULL * h + a[0];
-   h = 0x9e3779b97f4a7c13ULL * h + a[1];
-   h = 0x9e3779b97f4a7c13ULL * h + a[2];
-   h = 0x9e3779b97f4a7c13ULL * h + a[3];
-   h = 0x9e3779b97f4a7c13ULL * h + a[4];
-   h = 0x9e3779b97f4a7c13ULL * h + a[5];
-   h = 0x9e3779b97f4a7c13ULL * h + a[6];
-   h = 0x9e3779b97f4a7c13ULL * h + a[7];
-   return h;
-}
 static struct oht_pair*
 find_pair(struct oht *oht, u_int64_t key, u_int64_t hbucket) {
    struct oht_bucket *ohtb = &oht->buckets[hbucket];
@@ -102,12 +91,12 @@ find_pair(struct oht *oht, u_int64_t key, u_int64_t hbucket) {
    // look for a direct match, then look for 0
    for(int i = 0; i < PAIR_PER_BUCKET; ++i) {
       if(key == ohtb->pairs[i].key) {
-         return &ohtb->pairs[i];
+         return &(ohtb->pairs[i]);
       }
    }
    for(int i = 0; i < PAIR_PER_BUCKET; ++i) {
       if(ohtb->pairs[i].key == (u_int64_t)0) {
-         return &ohtb->pairs[i];
+         return &(ohtb->pairs[i]);
       }
    }
    return NULL;
@@ -117,7 +106,7 @@ oht_lookup(struct oht  *oht, u_int64_t key) {
    if(key == (u_int64_t)0) return NULL;
    // Keep lookup performance good
    if(oht->reset_calls > (u_int64_t)100
-      && (float)oht->reset_probes/oht->reset_calls > 2.0) {
+      && oht->reset_probes > 2*oht->reset_calls) {
       //printf("Probes per call above 2.0, expanding\n");
       _oht_grow(oht);
    }
@@ -138,7 +127,7 @@ oht_lookup(struct oht  *oht, u_int64_t key) {
       // This ensures that hash2 is odd so we get full table coverage 
       // because number of buckets is a power of 2 
       // However, only nbuckets/2 slots are explored, which makes collisions more likely
-      u_int64_t h2 = mult_hash(h1bucket) | 0x1;
+      u_int64_t h2 = oht->hash(h1bucket) | 0x1;
       probes++;
       oht->probes++;
       oht->reset_probes++;
@@ -208,7 +197,7 @@ _oht_grow(struct oht *oht) {
          }
       }
    }
-   free_bucket_space(oht, oht->buckets);
+   free_bucket_space(oht);
    oht->buckets = newht->buckets;
    oht->nbucketmask = newht->nbucketmask;
    oht->reset_probes = oht->reset_calls = (u_int64_t)0;
@@ -265,7 +254,7 @@ oht_log_stats(const struct oht *oht) {
            (oht->nbucketmask+1) * PAIR_PER_BUCKET, oht->nbucketmask + 1,
           nused, 100.0 * nused / ((oht->nbucketmask+1) * PAIR_PER_BUCKET),
           oht->expand);
-   printf("\t%llud calls %llud probes %3.2f probes/call\n", 
+   printf("\t%llud calls %llud probes %3.2f probes/call\n",
            oht->calls, oht->probes, (double)oht->probes / oht->calls);
 }
 
