@@ -84,22 +84,6 @@ oht_fini(struct oht* oht) {
    debug_free(oht);
 }
 
-// A simple and fast multiplicative hash function for 64-bits that uses a golden ratio
-// multiplier because Knuth says so.
-static u_int64_t
-mult_hash(u_int64_t _a){
-   unsigned char *a = (unsigned char*)&_a;
-   u_int64_t h = _a;
-   h = 0x9e3779b97f4a7c13ULL * h + a[0];
-   h = 0x9e3779b97f4a7c13ULL * h + a[1];
-   h = 0x9e3779b97f4a7c13ULL * h + a[2];
-   h = 0x9e3779b97f4a7c13ULL * h + a[3];
-   h = 0x9e3779b97f4a7c13ULL * h + a[4];
-   h = 0x9e3779b97f4a7c13ULL * h + a[5];
-   h = 0x9e3779b97f4a7c13ULL * h + a[6];
-   h = 0x9e3779b97f4a7c13ULL * h + a[7];
-   return h;
-}
 static struct oht_pair*
 find_pair(struct oht *oht, u_int64_t key, u_int64_t hbucket) {
    struct oht_bucket *ohtb = &oht->buckets[hbucket];
@@ -143,7 +127,7 @@ oht_lookup(struct oht  *oht, u_int64_t key) {
       // This ensures that hash2 is odd so we get full table coverage 
       // because number of buckets is a power of 2 
       // However, only nbuckets/2 slots are explored, which makes collisions more likely
-      u_int64_t h2 = mult_hash(h1bucket) | 0x1;
+      u_int64_t h2 = oht->hash(h1bucket) | 0x1;
       probes++;
       oht->probes++;
       oht->reset_probes++;
