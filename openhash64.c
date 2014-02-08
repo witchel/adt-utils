@@ -107,12 +107,12 @@ find_pair(struct oht *oht, u_int64_t key, u_int64_t hbucket) {
    // look for a direct match, then look for 0
    for(int i = 0; i < PAIR_PER_BUCKET; ++i) {
       if(key == ohtb->pairs[i].key) {
-         return &ohtb->pairs[i];
+         return &(ohtb->pairs[i]);
       }
    }
    for(int i = 0; i < PAIR_PER_BUCKET; ++i) {
       if(ohtb->pairs[i].key == (u_int64_t)0) {
-         return &ohtb->pairs[i];
+         return &(ohtb->pairs[i]);
       }
    }
    return NULL;
@@ -122,7 +122,7 @@ oht_lookup(struct oht  *oht, u_int64_t key) {
    if(key == (u_int64_t)0) return NULL;
    // Keep lookup performance good
    if(oht->reset_calls > (u_int64_t)100
-      && (float)oht->reset_probes/oht->reset_calls > 2.0) {
+      && oht->reset_probes > 2*oht->reset_calls) {
       //printf("Probes per call above 2.0, expanding\n");
       _oht_grow(oht);
    }
