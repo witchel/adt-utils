@@ -10,13 +10,15 @@
 
 int main() {
     struct oht* table = oht_init("Table", 256, mult_hash);
-    for(unsigned int i=0; i<1000; i++){
+    for(unsigned int i=0; i<10*1000*1000; i++){
         struct oht_pair* pair = oht_create(table, i+1, 0);
-        pair->data = 99;
+        pair->data = i*2;
     }
-    for(unsigned int i=0; i<10; i++){
+    for(unsigned int i=0; i<10*1000*1000; i++){
         struct oht_pair* pair = oht_lookup(table, i+1);
-        printf("%llu\n",pair->data);
+        if(pair->data != i*2){
+            printf("Error on index %u\n",i);
+        }
     }
     oht_fini(table);
   return 0;
