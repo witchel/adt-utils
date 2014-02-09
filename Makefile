@@ -1,7 +1,7 @@
 # -std=gnu11?
 CC = /usr/bin/gcc
-CFLAGS = -Wall -Werror -Wextra -pedantic -std=c11 -O2
-DBG_CFLAGS = -Wall —g Werror -Wextra -pedantic -std=c11 -O2
+CFLAGS = -Wall -Werror -Wextra -pedantic -std=c99 -O2
+DBG_CFLAGS = -Wall —g Werror -Wextra -pedantic -std=c99 -O2
 
 libsrc := openhash64.c 
 #Files that are only necessary in executables
