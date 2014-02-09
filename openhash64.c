@@ -7,22 +7,19 @@
 
 #include "openhash64.h"
 
-void* debug_calloc(size_t num, size_t size){
-    void*p = calloc(num, size);
-    fprintf(stderr, "calloc'd %zu bytes %zu times at %p\n",size, num, p);
-    return p;
-}
-
-void* debug_malloc(size_t size){
-    void*p = malloc(size);
-    fprintf(stderr, "malloc'd %zu bytes at %p\n",size, p);
-    return p;
-}
-
-void debug_free(void*p){
-    free(p);
-    fprintf(stderr, "freed %p\n",p);
-}
+#ifdef debug
+#define calloc(num, size)\
+    ({void*p = (calloc)((num), (size));\
+    fprintf(stderr, "calloc'd %zu bytes %zu times at %p\n",(size), (num), p);\
+     p;})
+#define malloc(size)\
+    ({void*p = (malloc)(size);\
+    fprintf(stderr, "malloc'd %zu bytes at %p\n", (size), (p));\
+    p;})
+#define free(p)\
+    ({(free)(p);\
+    fprintf(stderr, "freed %p\n",(p));})
+#endif
 
 // Assume 64-byte cache lines, so each bucket has 4 pairs
 #define PAIR_PER_BUCKET (4)
@@ -49,18 +46,18 @@ struct oht {
 static void _oht_grow(struct oht *oht);
 
 static void* get_bucket_space(struct oht* oht) {
-   void* ptr = debug_calloc(oht->nbucketmask + 1, sizeof(struct oht_bucket));
+   void* ptr = calloc(oht->nbucketmask + 1, sizeof(struct oht_bucket));
    return ptr;
 }
 static void free_bucket_space(struct oht* oht) {
-   debug_free(oht->buckets);
+   free(oht->buckets);
 }
 
 
 /* NB: nentryalloc is rounded up to a power of 2 */
 struct oht*
 oht_init(const char* name, u_int64_t ninitialpairs, u_int64_t (*hash)(u_int64_t)) {
-   struct oht* oht = (struct oht*) debug_malloc(sizeof(struct oht));
+   struct oht* oht = (struct oht*) malloc(sizeof(struct oht));
    if(!oht) return NULL;
    oht->name = name;
    oht->nbucketmask = (u_int64_t)1;
@@ -72,7 +69,7 @@ oht_init(const char* name, u_int64_t ninitialpairs, u_int64_t (*hash)(u_int64_t)
    oht->hash = hash;
    oht->buckets = get_bucket_space(oht);
    if(oht->buckets == NULL) {
-      debug_free(oht);
+      free(oht);
       return NULL;
    }
    return oht;
@@ -81,7 +78,7 @@ oht_init(const char* name, u_int64_t ninitialpairs, u_int64_t (*hash)(u_int64_t)
 void
 oht_fini(struct oht* oht) {
    free_bucket_space(oht);
-   debug_free(oht);
+   free(oht);
 }
 
 static struct oht_pair*
@@ -124,8 +121,8 @@ oht_lookup(struct oht  *oht, u_int64_t key) {
    u_int64_t bucket = h1bucket;
    u_int64_t probes = (u_int64_t)0;
    do {
-      // This ensures that hash2 is odd so we get full table coverage 
-      // because number of buckets is a power of 2 
+      // This ensures that hash2 is odd so we get full table coverage
+      // because number of buckets is a power of 2
       // However, only nbuckets/2 slots are explored, which makes collisions more likely
       u_int64_t h2 = oht->hash(h1bucket) | 0x1;
       probes++;
@@ -190,7 +187,7 @@ _oht_grow(struct oht *oht) {
             int newone = 0;
             struct oht_pair *pair = oht_create(newht, ohtb->pairs[i].key, &newone);
             if(newone == 0) {
-               //printf("Duplicate key! Bucket(%d) pair(i) key %ld data %ld\n", 
+               //printf("Duplicate key! Bucket(%d) pair(i) key %ld data %ld\n",
                //      bucket, i, ohtb->pairs[i].key, ohtb->pairs[i].data);
             }
             pair->data = ohtb->pairs[i].data;
@@ -201,11 +198,11 @@ _oht_grow(struct oht *oht) {
    oht->buckets = newht->buckets;
    oht->nbucketmask = newht->nbucketmask;
    oht->reset_probes = oht->reset_calls = (u_int64_t)0;
-   debug_free(newht); // Not fini, we don't want to free bucket space
+   free(newht); // Not fini, we don't want to free bucket space
 }
 
-void 
-oht_iter_nonzero(const struct oht *oht, 
+void
+oht_iter_nonzero(const struct oht *oht,
                  void (*proc)(void*, struct oht_pair*),/* Callback for each pair */
                  void *arg)
 {
@@ -235,26 +232,30 @@ static u_int64_t
 _oht_get_nused(const struct oht *oht) {
    u_int64_t b;
    u_int64_t nused = (u_int64_t)0;
-   for(b = (u_int64_t)0; b < oht->nbucketmask + 1; b++) {
-      struct oht_bucket *ohtb = &oht->buckets[b];
-      for(int i = 0; i < PAIR_PER_BUCKET; ++i) {
-         if(ohtb->pairs[i].key != (u_int64_t)0) {
-            nused++;
-         }
-      }
-   }
-   return nused;
-}
-// Ugly dependence on stdio
+               for(b = (u_int64_t)0; b < oht->nbucketmask + 1; b++) {
+                  struct oht_bucket *ohtb = &oht->buckets[b];
+                  for(int i = 0; i < PAIR_PER_BUCKET; ++i) {
+                     if(ohtb->pairs[i].key != (u_int64_t)0) {
+                        nused++;
+                             }
+              }
+           }
+           return nused;
+        }
+        // Ugly dependence on stdio
 #include <stdio.h>
-void
-oht_log_stats(const struct oht *oht) {
-   u_int64_t nused = _oht_get_nused(oht);
-   printf("Table npairs/nbuckets %llud/%llud used %llud(%3.2f%%) expand %d\n",
-           (oht->nbucketmask+1) * PAIR_PER_BUCKET, oht->nbucketmask + 1,
-          nused, 100.0 * nused / ((oht->nbucketmask+1) * PAIR_PER_BUCKET),
-          oht->expand);
+        void
+        oht_log_stats(const struct oht *oht) {
+           u_int64_t nused = _oht_get_nused(oht);
+           printf("Table npairs/nbuckets %llud/%llud used %llud(%3.2f%%) expand %d\n",
+                   (oht->nbucketmask+1) * PAIR_PER_BUCKET, oht->nbucketmask + 1,
+                  nused, 100.0 * nused / ((oht->nbucketmask+1) * PAIR_PER_BUCKET),
+                  oht->expand);
    printf("\t%llud calls %llud probes %3.2f probes/call\n",
            oht->calls, oht->probes, (double)oht->probes / oht->calls);
 }
 
+#undef malloc
+#undef calloc
+#undef free
+#undef debug

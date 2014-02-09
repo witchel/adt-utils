@@ -27,6 +27,9 @@ all: $(libdep) $(exedep) $(libobj) $(exeobj)
 test.dbg: $(libdep) $(exedep) $(libdobj) $(exedobj)
 	$(CC) $(DBG_CFLAGS) -o lametest.dbg $(exedobj) $(libdobj) 
 
+macro:
+	gcc -std=gnu99 -D debug openhash64.c lametest.c -o macro.dbg
+
 #dependences
 %.d:%.c
 	$(CC) -MM $(CFLAGS) $*.c > $*.d
