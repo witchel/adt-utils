@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
+#include <inttypes.h>
 
 #include "openhash64.h"
 
@@ -250,11 +251,11 @@ _oht_get_nused(const struct oht *oht) {
 void
 oht_log_stats(const struct oht *oht) {
    u_int64_t nused = _oht_get_nused(oht);
-   printf("Table npairs/nbuckets %llud/%llud used %llud(%3.2f%%) expand %d\n",
+   printf("Table npairs/nbuckets %" SCNu64 "/%" SCNu64  " used %" SCNu64 " (%3.2f%%) expand %d\n",
            (oht->nbucketmask+1) * PAIR_PER_BUCKET, oht->nbucketmask + 1,
           nused, 100.0 * nused / ((oht->nbucketmask+1) * PAIR_PER_BUCKET),
           oht->expand);
-   printf("\t%llud calls %llud probes %3.2f probes/call\n",
+    printf("\t%" SCNu64 " calls %" SCNu64 " probes %3.2f probes/call\n",
            oht->calls, oht->probes, (double)oht->probes / oht->calls);
 }
 
