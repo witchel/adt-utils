@@ -4,6 +4,7 @@ o Find and compare good hash functions (like cityhash)
 o Fix logging
 o Change it to support element delete
 o Rewrite part in assembly for speed
+o Develop cuckoo hash table
 o Develop other data structures like
   - Splay tree
   - Skip list
